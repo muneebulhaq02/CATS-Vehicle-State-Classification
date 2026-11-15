@@ -1,11 +1,3 @@
-   record_id      speed  acceleration  acceleration_change  ...    impact    battery  signal_strength   state
-0          1  68.849092      0.662526            -0.042674  ...  0.482053  36.263596        77.460402  NORMAL
-1          2        NaN     -0.217144             1.283528  ...  0.002519  79.089353        90.419994  NORMAL
-2          3  78.652777     -0.651296            -1.208978  ...  0.326849  51.506092        94.021976  NORMAL
-3          4  66.831111      0.621601            -0.197509  ...  0.810329  55.513807        92.040576  NORMAL
-4          5  70.269794      1.544521            -0.816350  ...  2.651807  75.916830        84.155987    RISK
-
-[5 rows x 11 columns]
 <class 'pandas.DataFrame'>
 RangeIndex: 3015 entries, 0 to 3014
 Data columns (total 10 columns):
@@ -24,20 +16,17 @@ Data columns (total 10 columns):
 dtypes: float64(9), str(1)
 memory usage: 235.7 KB
 None
-             speed  acceleration  acceleration_change  ...       impact      battery  signal_strength
-count  2919.000000   2923.000000          3015.000000  ...  2928.000000  3015.000000      2932.000000
-mean     68.868563     -0.454568             0.007345  ...     1.235626    62.259124        73.637844
-std      27.188768      2.474301             1.966226  ...     1.606925    22.562686        18.163728
-min       0.000000    -16.294105           -13.225857  ...     0.000002     5.655390         0.000000
-25%      50.824842     -1.084091            -0.718175  ...     0.391016    43.244111        64.454552
-50%      66.540197     -0.099835             0.004258  ...     0.655314    62.805349        76.836014
-75%      85.572515      0.723955             0.708950  ...     1.289337    81.527016        86.399192
-max     160.000000     12.011630            14.617290  ...    11.951986    99.966112       100.000000
+             speed  acceleration  ...      battery  signal_strength
+count  2919.000000   2923.000000  ...  3015.000000      2932.000000
+mean     68.868563     -0.454568  ...    62.259124        73.637844
+std      27.188768      2.474301  ...    22.562686        18.163728
+min       0.000000    -16.294105  ...     5.655390         0.000000
+25%      50.824842     -1.084091  ...    43.244111        64.454552
+50%      66.540197     -0.099835  ...    62.805349        76.836014
+75%      85.572515      0.723955  ...    81.527016        86.399192
+max     160.000000     12.011630  ...    99.966112       100.000000
 
 [8 rows x 9 columns]
-Index(['speed', 'acceleration', 'acceleration_change', 'gyro_x', 'gyro_y',
-       'gyro_z', 'impact', 'battery', 'signal_strength', 'state'],
-      dtype='str')
 
 Missing Values:
 speed                  96
@@ -52,157 +41,133 @@ signal_strength        83
 state                   0
 dtype: int64
 
-Missing Values after filling:
-0
-
 Duplicates: 15
 state
 NORMAL      2100
 RISK         660
 CRITICAL     240
 Name: count, dtype: int64
-Rows before outlier removal: 3000
+
+Encoding Mapping: {'NORMAL': 0, 'RISK': 1, 'CRITICAL': 2}
+Numeric columns: ['speed', 'acceleration', 'acceleration_change', 'gyro_x', 'gyro_y', 'gyro_z', 'impact', 'battery', 'signal_strength']
+Categorical columns: []
+
+Missing after imputation: 0 0
+Train rows before outlier removal: 2400
+Train rows after outlier removal: 2236
 state
-NORMAL      2100
-RISK         660
-CRITICAL     240
-Name: count, dtype: int64
-Rows after outlier removal: 2800
-state
-NORMAL      1948
-RISK         627
-CRITICAL     225
+0    1556
+1     499
+2     181
 Name: count, dtype: int64
 
-Encoding Mapping:
-{'NORMAL': 0, 'RISK': 1, 'CRITICAL': 2}
+No categorical columns -> encoding and chi2 skipped
 
-Correlation with Target:
-state                  1.000000
-impact                 0.845188
-gyro_magnitude         0.841151
-abs_accel_change       0.644732
-signal_strength        0.590206
-speed                  0.478101
-acceleration           0.426071
-battery                0.211618
-gyro_x                 0.089938
-gyro_z                 0.033428
-gyro_y                 0.025087
-acceleration_change    0.014469
+Correlation with Target (train):
+impact                 0.843111
+gyro_magnitude         0.840158
+abs_accel_change       0.651817
+signal_strength        0.590029
+speed                  0.467716
+acceleration           0.429313
+battery                0.218723
+gyro_x                 0.079284
+gyro_z                 0.022861
+gyro_y                 0.016936
+acceleration_change    0.012065
 Name: state, dtype: float64
 
-Class percentages:
+Selected Features: ['impact', 'gyro_magnitude', 'abs_accel_change', 'signal_strength', 'speed', 'acceleration']
+
+Class percentages (train):
 state
-0    69.57
-1    22.39
-2     8.04
+0    69.59
+1    22.32
+2     8.09
 Name: count, dtype: float64
 Smallest class / biggest class = 0.116
-Dataset is IMBALANCED -> SMOTE will be applied on training data
+SMOTE will be applied
 
-Train class counts after SMOTE:
+All Features - train counts after SMOTE:
 state
-0    1558
-2    1558
-1    1558
+0    1556
+1    1556
+2    1556
 Name: count, dtype: int64
 
 ============================================================
-ALL FEATURES - RANDOM FOREST
+ALL FEATURES
 ============================================================
-Depth=3 | Train Accuracy=0.9880 | Test Accuracy=0.9804 | Precision=0.9587 | Recall=0.9714 | Macro F1=0.9647
-Depth=5 | Train Accuracy=0.9949 | Test Accuracy=0.9857 | Precision=0.9656 | Recall=0.9823 | Macro F1=0.9733
-Depth=8 | Train Accuracy=0.9985 | Test Accuracy=0.9893 | Precision=0.9729 | Recall=0.9876 | Macro F1=0.9799
-Depth=12 | Train Accuracy=0.9996 | Test Accuracy=0.9875 | Precision=0.9683 | Recall=0.9831 | Macro F1=0.9750
+Random Forest {'max_depth': 12} | Train Acc=0.9996 | Test Acc=0.9717 | Precision=0.9467 | Recall=0.9682 | Macro F1=0.9571
+XGBoost {'max_depth': 3} | Train Acc=1.0000 | Test Acc=0.9683 | Precision=0.9448 | Recall=0.9632 | Macro F1=0.9537
+AdaBoost {'learning_rate': 0.5, 'n_estimators': 100} | Train Acc=0.9828 | Test Acc=0.9467 | Precision=0.9045 | Recall=0.9519 | Macro F1=0.9260
+SVM {'C': 1} | Train Acc=0.9931 | Test Acc=0.9783 | Precision=0.9551 | Recall=0.9591 | Macro F1=0.9571
 
-BEST RESULT USING ALL FEATURES
-Depth              8.000000
-Train Accuracy     0.998502
-Test Accuracy      0.989286
-Macro Precision    0.972890
-Macro Recall       0.987624
-Macro F1           0.979899
-Name: 2, dtype: float64
-
-CLASSIFICATION REPORT (ALL FEATURES)
-              precision    recall  f1-score   support
-
-      NORMAL       1.00      0.99      1.00       390
-        RISK       0.98      0.97      0.98       125
-    CRITICAL       0.94      1.00      0.97        45
-
-    accuracy                           0.99       560
-   macro avg       0.97      0.99      0.98       560
-weighted avg       0.99      0.99      0.99       560
-
-
-Selected Features:
-['impact', 'gyro_magnitude', 'abs_accel_change', 'signal_strength', 'speed', 'acceleration']
+Selected Features - train counts after SMOTE:
+state
+0    1556
+1    1556
+2    1556
+Name: count, dtype: int64
 
 ============================================================
-SELECTED FEATURES - RANDOM FOREST
+SELECTED FEATURES
 ============================================================
-Depth=3 | Train Accuracy=0.9874 | Test Accuracy=0.9804 | Precision=0.9565 | Recall=0.9666 | Macro F1=0.9614
-Depth=5 | Train Accuracy=0.9942 | Test Accuracy=0.9875 | Precision=0.9665 | Recall=0.9850 | Macro F1=0.9751
-Depth=8 | Train Accuracy=0.9991 | Test Accuracy=0.9875 | Precision=0.9665 | Recall=0.9850 | Macro F1=0.9751
-Depth=12 | Train Accuracy=1.0000 | Test Accuracy=0.9875 | Precision=0.9665 | Recall=0.9850 | Macro F1=0.9751
-
-BEST RESULT USING SELECTED FEATURES
-Depth              5.000000
-Train Accuracy     0.994223
-Test Accuracy      0.987500
-Macro Precision    0.966468
-Macro Recall       0.984957
-Macro F1           0.975085
-Name: 1, dtype: float64
-
-CLASSIFICATION REPORT (SELECTED FEATURES)
-              precision    recall  f1-score   support
-
-      NORMAL       1.00      0.99      1.00       390
-        RISK       0.98      0.96      0.97       125
-    CRITICAL       0.92      1.00      0.96        45
-
-    accuracy                           0.99       560
-   macro avg       0.97      0.98      0.98       560
-weighted avg       0.99      0.99      0.99       560
-
+Random Forest {'max_depth': 8} | Train Acc=0.9983 | Test Acc=0.9667 | Precision=0.9338 | Recall=0.9676 | Macro F1=0.9499
+XGBoost {'max_depth': 8} | Train Acc=1.0000 | Test Acc=0.9667 | Precision=0.9325 | Recall=0.9624 | Macro F1=0.9466
+AdaBoost {'learning_rate': 0.5, 'n_estimators': 100} | Train Acc=0.9828 | Test Acc=0.9567 | Precision=0.9200 | Recall=0.9584 | Macro F1=0.9378
+SVM {'C': 0.1} | Train Acc=0.9905 | Test Acc=0.9833 | Precision=0.9670 | Recall=0.9694 | Macro F1=0.9681
 
 FINAL COMPARISON
-             Dataset  Best Depth  Test Accuracy  Macro Precision  Macro Recall  Macro F1  CRITICAL Recall
-0       All Features         8.0       0.989286         0.972890      0.987624  0.979899              1.0
-1  Selected Features         5.0       0.987500         0.966468      0.984957  0.975085              1.0
+            Features          Model  Train Accuracy  Test Accuracy  Macro Precision  Macro Recall  Macro F1  CRITICAL Recall
+0       All Features  Random Forest          0.9996         0.9717           0.9467        0.9682    0.9571           0.9792
+1       All Features        XGBoost          1.0000         0.9683           0.9448        0.9632    0.9537           0.9792
+2       All Features       AdaBoost          0.9828         0.9467           0.9045        0.9519    0.9260           0.9583
+3       All Features            SVM          0.9931         0.9783           0.9551        0.9591    0.9571           0.9375
+4  Selected Features  Random Forest          0.9983         0.9667           0.9338        0.9676    0.9499           0.9792
+5  Selected Features        XGBoost          1.0000         0.9667           0.9325        0.9624    0.9466           0.9792
+6  Selected Features       AdaBoost          0.9828         0.9567           0.9200        0.9584    0.9378           0.9583
+7  Selected Features            SVM          0.9905         0.9833           0.9670        0.9694    0.9681           0.9583
 
-PRECISION / RECALL / F1 FOR EACH CLASS
-             Dataset     Class  Precision  Recall  F1-score
-0       All Features    NORMAL     0.9974  0.9949    0.9961
-1       All Features      RISK     0.9837  0.9680    0.9758
-2       All Features  CRITICAL     0.9375  1.0000    0.9677
-3  Selected Features    NORMAL     0.9974  0.9949    0.9961
-4  Selected Features      RISK     0.9836  0.9600    0.9717
-5  Selected Features  CRITICAL     0.9184  1.0000    0.9574
+BEST MODEL: ('Selected Features', 'SVM') {'C': 0.1}
 
-Feature Importance:
-gyro_magnitude         0.411187
-impact                 0.307670
-abs_accel_change       0.077521
-acceleration           0.062597
-signal_strength        0.036494
-speed                  0.033491
-gyro_x                 0.025982
-gyro_z                 0.019417
-gyro_y                 0.014931
-battery                0.005502
-acceleration_change    0.005210
+CLASSIFICATION REPORT (BEST MODEL)
+              precision    recall  f1-score   support
+
+      NORMAL       0.99      1.00      0.99       420
+        RISK       0.97      0.95      0.96       132
+    CRITICAL       0.94      0.96      0.95        48
+
+    accuracy                           0.98       600
+   macro avg       0.97      0.97      0.97       600
+weighted avg       0.98      0.98      0.98       600
+
+
+Confusion Matrix (rows = true, columns = predicted):
+[[418   2   0]
+ [  3 126   3]
+ [  0   2  46]]
+
+Feature Importance (Random Forest, all features):
+impact                 0.356736
+gyro_magnitude         0.344703
+abs_accel_change       0.077454
+acceleration           0.048996
+speed                  0.046252
+gyro_x                 0.039473
+signal_strength        0.036853
+gyro_z                 0.020728
+gyro_y                 0.014213
+acceleration_change    0.009363
+battery                0.005229
 dtype: float64
 
 ============================================================
 EXPLANATION OF ONE TEST PREDICTION
 ============================================================
 Prediction: CRITICAL
-Confidence: 0.70
-Reason: strong rotation + strong impact + high speed
+Confidence: 1.00
+Reason: strong rotation + strong impact + sudden acceleration change
 
 ============================================================
 NEW TELEMETRY RECORD

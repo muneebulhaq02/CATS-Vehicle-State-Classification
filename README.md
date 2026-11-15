@@ -1,19 +1,15 @@
 # CATS - Crisis Alert Tech System (Vehicle State Classification)
 
 A small ML prototype that reads one vehicle telemetry record and classifies it as
-**NORMAL**, **RISK** or **CRITICAL**.
-
-This is a learning prototype on a **synthetic dataset**. It does not claim to detect
-real-world accidents.
+**NORMAL**, **RISK** or **CRITICAL**. It is a learning prototype, not a certified safety system.
 
 ## Project files
 
 ```
-
 CATS_Project/
-├── CATS_Vehicle_State_Classification.py   # full project (EDA, preparation, model, evaluation, explanation)
+├── CATS_Vehicle_State_Classification.py   # full project (EDA, preprocessing, models, evaluation, explanation)
 ├── cats_api.py                            # simple FastAPI prediction API
-├── data/cats_telemetry.csv                # synthetic dataset
+├── data/cats_telemetry.csv                # dataset
 ├── results.txt                            # full console output (metrics, reports)
 ├── screenshots/
 │   ├── 01_target_distribution.png
@@ -21,11 +17,11 @@ CATS_Project/
 │   ├── 03_model_comparison.png
 │   ├── 04_confusion_matrix.png
 │   ├── 05_feature_importance.png
-│   └── 06_pairplot.png                        # key plots (6 images)
+│   ├── 06_pairplot.png
+│   ├── 07_train_correlation.png
+│   └── 08_api_prediction.png
 ├── requirements.txt
 └── README.md
-
-
 ```
 
 ## 1. How to install dependencies
@@ -35,8 +31,6 @@ Python 3.9 or newer is needed.
 ```
 pip install -r requirements.txt
 ```
-
-Or: `pip install numpy pandas matplotlib seaborn scikit-learn imbalanced-learn fastapi uvicorn`
 
 ## 2. How to run the project
 
@@ -48,18 +42,10 @@ python CATS_Vehicle_State_Classification.py
 
 The script prints the results and opens the plots one by one. Close each plot window to continue.
 
-What the script does, in order: load data, check and fill missing values, remove
-duplicates, plot distributions, remove outliers, create new features, encode the target,
-correlation analysis, split 80/20, check class balance and apply SMOTE (train data only),
-scale, train Random Forest on all features and on selected features, compare (accuracy,
-precision, recall, F1 overall and for each class), explain a prediction, test a new record.
+## 3. Dataset
 
-## 3. Dataset used
-
-`data/cats_telemetry.csv` is a **synthetic dataset** (3,015 rows, including 15 duplicate rows
-and about 3% missing sensor values added on purpose to copy real telemetry problems).
-The class values overlap on purpose, so the problem is not trivially easy.
-It is not real crash data.
+`data/cats_telemetry.csv` has 3,015 rows (15 exact duplicates, and about 3% missing values in the
+sensor columns). All feature columns are numeric, so there are no categorical features.
 
 | Column | Meaning |
 |---|---|
@@ -73,111 +59,96 @@ It is not real crash data.
 | signal_strength | signal quality (0-100) |
 | state | target: NORMAL, RISK or CRITICAL |
 
-Class split: NORMAL 69.57%, RISK 22.39%, CRITICAL 8.04% (imbalanced).
+Class split after removing duplicates: NORMAL 2100 (70%), RISK 660 (22%), CRITICAL 240 (8%) - imbalanced.
 
-Derived features made by the script: `gyro_magnitude` (combined rotation from x, y, z) and
-`abs_accel_change` (size of sudden acceleration change).
+Derived features: `gyro_magnitude` (combined rotation from x, y, z) and `abs_accel_change`
+(size of sudden acceleration change).
 
-## 4. Model used
+## 4. Pipeline (no data leakage)
 
-**Random Forest Classifier** (scikit-learn, 200 trees). Reasons: it handles non-linear
-patterns, works well with noisy data, and gives feature importance and probabilities for
-explanations.
+Everything that learns from data is fitted on the **training set only** and then applied to the test set.
 
-Preparation steps:
-- Missing values filled with the column median
-- Duplicates removed
-- Outliers removed with the IQR rule inside each class (using IQR on the whole dataset would delete almost all CRITICAL rows)
-- Target encoded: NORMAL=0, RISK=1, CRITICAL=2
-- 80/20 stratified train/test split
-- SMOTE on the training set only, because the data is imbalanced
-- StandardScaler
-- Tree depth chosen from 3, 5, 8, 12 by best macro-F1 (accuracy, precision and recall are also printed for each depth)
+| Phase | What is done |
+|---|---|
+| 1. Cleaning | Drop `record_id`, drop duplicates (before split) |
+| 2. EDA | All plots are drawn before the split |
+| 3. Split | 80/20 stratified train/test |
+| 4. Missing values | `SimpleImputer` (median), fit on train, applied to train and test |
+| 5. Outliers | IQR rule inside each class, **train only** (test is not touched) |
+| 6. New features | `gyro_magnitude`, `abs_accel_change` (row-wise, no leakage) |
+| 7. Encoding | One-hot encoding, fit on train, only if categorical columns exist (none in this dataset) |
+| 8. Feature selection | Pearson correlation with target > 0.30 on train (chi2 with p < 0.05 would be used for one-hot encoded categorical columns) |
+| 9. Scaling | `StandardScaler`, fit on train, applied to test |
+| 10. Imbalance | Smallest/biggest class ratio is 0.116, so SMOTE is applied to train only, after scaling |
+| 11. Models | Random Forest, XGBoost, AdaBoost, SVM with `GridSearchCV` (5-fold, macro F1). SMOTE runs inside the CV pipeline, so validation folds stay untouched |
+
+**How the 6 features were selected:** the absolute Pearson correlation of each numeric feature with the
+target is calculated on the **training data only**, and features with correlation **above 0.30** are kept.
+The other 5 features fall below the threshold and are dropped.
+
+| Feature | Correlation with target (train) | Kept |
+|---|---|---|
+| impact | 0.843 | Yes |
+| gyro_magnitude | 0.840 | Yes |
+| abs_accel_change | 0.652 | Yes |
+| signal_strength | 0.590 | Yes |
+| speed | 0.468 | Yes |
+| acceleration | 0.429 | Yes |
+| battery | 0.219 | No |
+| gyro_x | 0.079 | No |
+| gyro_z | 0.023 | No |
+| gyro_y | 0.017 | No |
+| acceleration_change | 0.012 | No |
+
+The bar plot of these values is in `screenshots/07_train_correlation.png`.
+
+Each model is trained on **all features (11)** and on the **selected features (6)**.
 
 ## 5. Evaluation results
 
-Full output is in `results.txt`. Plots are in `screenshots/`.
+Full output is in `results.txt`. Test set: 600 rows. Precision, recall and F1 are macro averages over the 3 classes.
 
-Results for each tree depth (macro precision, macro recall and macro F1 are averaged over the 3 classes):
+| Features | Model | Best params | Accuracy | Precision | Recall | Macro F1 | CRITICAL recall |
+|---|---|---|---|---|---|---|---|
+| All | Random Forest | depth 12 | 0.9717 | 0.9467 | 0.9682 | 0.9571 | 0.9792 |
+| All | XGBoost | depth 3 | 0.9683 | 0.9448 | 0.9632 | 0.9537 | 0.9792 |
+| All | AdaBoost | lr 0.5, 100 est. | 0.9467 | 0.9045 | 0.9519 | 0.9260 | 0.9583 |
+| All | SVM | C = 1 | 0.9783 | 0.9551 | 0.9591 | 0.9571 | 0.9375 |
+| Selected | Random Forest | depth 8 | 0.9667 | 0.9338 | 0.9676 | 0.9499 | 0.9792 |
+| Selected | XGBoost | depth 8 | 0.9667 | 0.9325 | 0.9624 | 0.9466 | 0.9792 |
+| Selected | AdaBoost | lr 0.5, 100 est. | 0.9567 | 0.9200 | 0.9584 | 0.9378 | 0.9583 |
+| **Selected** | **SVM** | **C = 0.1** | **0.9833** | **0.9670** | **0.9694** | **0.9681** | **0.9583** |
 
-All features:
+**Best model:** SVM (RBF) on the 6 selected features, chosen by highest macro F1.
 
-| Depth | Train Acc | Test Acc | Precision | Recall | Macro F1 |
-|---|---|---|---|---|---|
-| 3 | 0.9880 | 0.9804 | 0.9587 | 0.9714 | 0.9647 |
-| 5 | 0.9949 | 0.9857 | 0.9656 | 0.9823 | 0.9733 |
-| **8** | 0.9985 | 0.9893 | 0.9729 | 0.9876 | 0.9799 |
-| 12 | 0.9996 | 0.9875 | 0.9683 | 0.9831 | 0.9750 |
-
-Selected features:
-
-| Depth | Train Acc | Test Acc | Precision | Recall | Macro F1 |
-|---|---|---|---|---|---|
-| 3 | 0.9874 | 0.9804 | 0.9565 | 0.9666 | 0.9614 |
-| **5** | 0.9942 | 0.9875 | 0.9665 | 0.9850 | 0.9751 |
-| 8 | 0.9991 | 0.9875 | 0.9665 | 0.9850 | 0.9751 |
-| 12 | 1.0000 | 0.9875 | 0.9665 | 0.9850 | 0.9751 |
-
-The best depth (in bold) is the one with the highest macro F1. For selected features, depths 5, 8
-and 12 tie, and the first one (5) is used.
-
-Overall results (test set, 560 rows):
-
-| Features | Best depth | Accuracy | Macro Precision | Macro Recall | Macro F1 | CRITICAL recall |
-|---|---|---|---|---|---|---|
-| All features | 8 | 0.989 | 0.973 | 0.988 | 0.980 | 1.00 |
-| Correlation-selected (6 features) | 5 | 0.988 | 0.966 | 0.985 | 0.975 | 1.00 |
-
-Precision, recall and F1-score for each class:
-
-All features (11 features):
+Precision, recall and F1 for each class (best model):
 
 | Class | Precision | Recall | F1-score | Support |
 |---|---|---|---|---|
-| NORMAL | 1.00 | 0.99 | 1.00 | 390 |
-| RISK | 0.98 | 0.97 | 0.98 | 125 |
-| CRITICAL | 0.94 | 1.000 | 0.97 | 45 |
-
-Selected features (impact, gyro_magnitude, abs_accel_change, signal_strength, speed, acceleration):
-
-| Class | Precision | Recall | F1-score | Support |
-|---|---|---|---|---|
-| NORMAL | 1.00 | 0.99 | 1.00 | 390 |
-| RISK | 0.98 | 0.960 | 0.97 | 125 |
-| CRITICAL | 0.92 | 1.000 | 0.96 | 45 |
-
-How to read this: precision is "when the model says this class, how often is it right", and
-recall is "of the real cases of this class, how many did the model find". For CRITICAL, recall
-is 1.00 (no crash was missed) and precision is 0.94 (some RISK cases were predicted as CRITICAL,
-which are false alarms).
+| NORMAL | 0.99 | 1.00 | 0.99 | 420 |
+| RISK | 0.97 | 0.95 | 0.96 | 132 |
+| CRITICAL | 0.94 | 0.96 | 0.95 | 48 |
 
 Confusion matrix (rows = true, columns = predicted):
 
 | | NORMAL | RISK | CRITICAL |
 |---|---|---|---|
-| NORMAL | 388 | 2 | 0 |
-| RISK | 1 | 121 | 3 |
-| CRITICAL | 0 | 0 | 45 |
+| NORMAL | 418 | 2 | 0 |
+| RISK | 3 | 126 | 3 |
+| CRITICAL | 0 | 2 | 46 |
 
-Most important features: `gyro_magnitude`, `impact`, `abs_accel_change`.
+How to read this: precision is "when the model says this class, how often is it right", and recall is
+"of the real cases of this class, how many did the model find". For CRITICAL, 46 of 48 cases were found
+(recall 0.96) and 2 were predicted as RISK.
 
-Note: results are high because the data is synthetic. Real telemetry would give lower scores.
-
-Screenshots:
-- `screenshots/01_target_distribution.png`
-- `screenshots/02_correlation_heatmap.png`
-- `screenshots/03_model_comparison.png`
-- `screenshots/04_confusion_matrix.png`
-- `screenshots/05_feature_importance.png`
-- `screenshots/06_pairplot.png`
+Most important features (Random Forest, all features): `impact` (0.36), `gyro_magnitude` (0.34), `abs_accel_change` (0.08).
 
 ## 6. How to test a new telemetry record
 
-At the bottom of `CATS_Vehicle_State_Classification.py`, find the `new_record` section and
-change the values:
+At the bottom of `CATS_Vehicle_State_Classification.py`, change the values in `predict_new({...})`:
 
 ```python
-new_record = pd.DataFrame([{
+predict_new({
     "speed": 110,
     "acceleration": -7.5,
     "acceleration_change": 9.0,
@@ -187,7 +158,7 @@ new_record = pd.DataFrame([{
     "impact": 7.0,
     "battery": 40,
     "signal_strength": 25
-}])
+})
 ```
 
 Run the script again. The last output shows the prediction, confidence and a short reason:
@@ -198,31 +169,30 @@ Confidence: 1.00
 Reason: strong rotation + strong impact + sudden acceleration change
 ```
 
-Confidence is the share of trees that voted for the predicted class. It is not the real
-probability of a crash. If a sensor value is missing, set it to `np.nan` (do not delete the key); it will be
-filled with the median.
+Confidence is the model's predicted probability for the chosen class, not the real probability of a crash.
+If a sensor value is missing, use `np.nan`; it is filled with the training median.
 
 ## 7. API / integration code
- 
-`cats_api.py` is a small FastAPI backend that classifies new telemetry in real time. It repeats
-the same preparation steps as the main file (median fill, duplicates, outlier removal, derived
-features, SMOTE, scaling) and trains a Random Forest (200 trees, depth 8) when it starts, so
-**no trained model file is saved or needed**.
- 
+
+`cats_api.py` is a small FastAPI backend that classifies new telemetry in real time. It follows the same
+pipeline as the main file (median imputation, per-class IQR outlier removal, derived features, correlation
+feature selection, scaling, SMOTE) and trains the best model (SVM, C = 0.1) when it starts, so
+**no trained model file is saved or needed**. It uses all rows for training because it has no test set.
+
 Run it from the `CATS_Project` folder (the `data` folder must be next to the file):
- 
+
 ```
 uvicorn cats_api:app --reload
 ```
- 
+
 Then open `http://127.0.0.1:8000/docs` to test it in the browser, or send a request:
- 
+
 ```
 curl -X POST http://127.0.0.1:8000/predict -H "Content-Type: application/json" -d '{"speed": 110, "acceleration": -7.5, "acceleration_change": 9.0, "gyro_x": 2.1, "gyro_y": -1.8, "gyro_z": 2.5, "impact": 7.0, "battery": 40, "signal_strength": 25}'
 ```
- 
+
 Example response:
- 
+
 ```
 {
   "prediction": "CRITICAL",
@@ -231,8 +201,11 @@ Example response:
   "reason": "strong rotation + strong impact + sudden acceleration change"
 }
 ```
- 
+
 A missing sensor value can be left out or sent as `null`; it is filled with the training median.
+
+Example request and response from the running API:
+
+![API prediction](screenshots/08_api_prediction.png)
+
 This is a prototype: it has no login, no data storage and no connection to a real CATS bot.
-A CATS bot or vehicle device would call `POST /predict` and use the returned state, confidence
-and reason to decide on an alert.   
